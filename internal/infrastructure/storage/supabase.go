@@ -6,9 +6,13 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"os"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/gofiber/fiber/v2/log"
+)
+
+const (
+	supabaseUrlExpiryInSeconds = 360000
 )
 
 type SupabaseStorage struct {
@@ -45,14 +49,12 @@ func (sb *SupabaseStorage) UploadFile(fileHeader *multipart.FileHeader) (string,
 		return "", fmt.Errorf("failed to upload: %v", err)
 	}
 
-	// Check for errors
 	if resp.StatusCode() != http.StatusOK && resp.StatusCode() != http.StatusCreated {
 		return "", fmt.Errorf("failed to upload. Status not 200. resp: %s", resp.String())
 	}
 
-	// Return the file URL
-	// fileURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", sb.SupabaseURL, sb.BucketName, fileHeader.Filename)
-	fileURL, err := sb.generateSignedURL(fileHeader.Filename, 3600)
+	// fileURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", sb.SupabaseURL, sb.BucketName, fileHeader.Filename)	//Permanent URL
+	fileURL, err := sb.generateSignedURL(fileHeader.Filename, supabaseUrlExpiryInSeconds)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %v", err)
 	}
@@ -92,34 +94,24 @@ func (sb *SupabaseStorage) generateSignedURL(filePath string, expirySeconds int)
 	return signedURL, nil
 }
 
-// DownloadFile fetches a file from Supabase Storage and saves it locally
-func (sb *SupabaseStorage) DownloadFile(fileName string, savePath string) error {
-	// Generate a signed URL (valid for 1 hour)
-	fileURL, err := sb.generateSignedURL(fileName, 3600)
+func (sb *SupabaseStorage) StreamLogs(fileURL string) (io.ReadCloser, error) {
+	resp, err := resty.New().R().SetDoNotParseResponse(true).Get(fileURL)
 	if err != nil {
-		return fmt.Errorf("failed to generate signed URL: %v", err)
-	}
-
-	resp, err := resty.New().R().Get(fileURL)
-	if err != nil {
-		return fmt.Errorf("failed to download file: %v", err)
+		return nil, fmt.Errorf("failed to fetch file stream: %v", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("failed to download file. Status code: %d", resp.StatusCode())
+		return nil, fmt.Errorf("failed to fetch file. Status: %d", resp.StatusCode())
 	}
 
-	outFile, err := os.Create(savePath)
-	if err != nil {
-		return fmt.Errorf("failed to create local file: %v", err)
-	}
-	defer outFile.Close()
+	return resp.RawBody(), nil
+}
 
-	_, err = io.Copy(outFile, resp.RawBody())
-	if err != nil {
-		return fmt.Errorf("failed to save file locally: %v", err)
+func (sb *SupabaseStorage) GetFileSize(fileURL string) (int64, error) {
+	resp, err := resty.New().R().Head(fileURL)
+	if err != nil || resp.RawResponse == nil {
+		log.Errorf("Warning: Unable to determine total file size. %v", err)
+		return 0, err
 	}
-
-	fmt.Printf("✅ File downloaded successfully: %s\n", savePath)
-	return nil
+	return resp.RawResponse.ContentLength, nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/streadway/amqp"
 )
 
@@ -14,22 +13,17 @@ var (
 )
 
 type (
-	ProgressMessenger interface {
-		StartQueue(jobID string) (*progressMsgQueue, error)
+	LiveStatusQueue interface {
+		StartQueue(jobID string) (*LiveStatusQueueSession, error)
 		WaitAndRecieveProgressMsgsQueue(ctx context.Context, jobID string) (<-chan amqp.Delivery, error)
 	}
 
-	RabbitMqProgressMessenger struct {
+	RabbitMqLiveStatusQueue struct {
 		Ch *amqp.Channel
-	}
-
-	progressMsgQueue struct {
-		ch        *amqp.Channel
-		queueName string
 	}
 )
 
-func NewResultChan(rabbitConfig RabbitMQConfig) (ProgressMessenger, error) {
+func NewRabbitMqLiveStatusQueue(rabbitConfig RabbitMQConfig) (LiveStatusQueue, error) {
 	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s:%s/",
 		rabbitConfig.User, rabbitConfig.Password, rabbitConfig.Host, rabbitConfig.Port))
 	if err != nil {
@@ -41,43 +35,24 @@ func NewResultChan(rabbitConfig RabbitMQConfig) (ProgressMessenger, error) {
 		return nil, fmt.Errorf("RabbitMQ Channel Error: %v", err)
 	}
 
-	return &RabbitMqProgressMessenger{Ch: ch}, nil
+	return &RabbitMqLiveStatusQueue{Ch: ch}, nil
 }
 
-func (rpm *RabbitMqProgressMessenger) StartQueue(jobID string) (*progressMsgQueue, error) {
+func (rpm *RabbitMqLiveStatusQueue) StartQueue(jobID string) (*LiveStatusQueueSession, error) {
 	queueName := fmt.Sprintf("result_queue_%s", jobID)
-	log.Debug("Creating queue:", queueName)
+	// log.Debug("Creating queue:", queueName)
 	_, err := rpm.Ch.QueueDeclare(queueName, false, false, false, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("RabbitMQ Queue Declare Error: %v", err)
 	}
 
-	return &progressMsgQueue{
+	return &LiveStatusQueueSession{
 		ch:        rpm.Ch,
 		queueName: queueName,
 	}, nil
 }
 
-func (q *progressMsgQueue) SendIntermediateResult(result string) {
-	err := q.ch.Publish("", q.queueName, false, false, amqp.Publishing{
-		ContentType: "text/plain",
-		Body:        []byte(result),
-	})
-	if err != nil {
-		fmt.Println("RabbitMQ Publish Error:", err)
-	}
-
-	fmt.Println("✅ Sent intermediate result to RabbitMQ:", result)
-}
-
-func (q *progressMsgQueue) Delete() {
-	_, err := q.ch.QueueDelete(q.queueName, false, false, false)
-	if err != nil {
-		fmt.Println("RabbitMQ Queue Delete Error:", err)
-		return
-	}
-}
-func (rpm *RabbitMqProgressMessenger) WaitAndRecieveProgressMsgsQueue(ctx context.Context, jobID string) (<-chan amqp.Delivery, error) {
+func (rpm *RabbitMqLiveStatusQueue) WaitAndRecieveProgressMsgsQueue(ctx context.Context, jobID string) (<-chan amqp.Delivery, error) {
 
 	queueName := fmt.Sprintf("result_queue_%s", jobID)
 
