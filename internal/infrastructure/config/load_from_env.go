@@ -14,8 +14,10 @@ func init() {
 }
 
 var Env struct {
-	AppSettings `mapstructure:",squash"`
-	SupaBase    `mapstructure:",squash"`
+	AppSettings    `mapstructure:",squash"`
+	SupaBase       `mapstructure:",squash"`
+	Postgres       `mapstructure:",squash"`
+	RabbitMQConfig `mapstructure:",squash"`
 }
 
 func loadEnv() error {

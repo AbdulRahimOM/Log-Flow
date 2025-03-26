@@ -6,21 +6,15 @@ import (
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/utils/helper"
 
+	_ "log-flow/internal/infrastructure/db"
+
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"
 )
 
 const (
 	uploadsDir = "./uploads"
 )
-
-func init() {
-	err := helper.EnsureUploadsDir(uploadsDir)
-	if err != nil {
-		log.Fatal("Error ensuring uploads directory. ", err)
-	}
-}
 
 func (h *HttpHandler) UploadLogs(c *fiber.Ctx) error {
 	file, err := c.FormFile("file")
@@ -42,11 +36,14 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) error {
 		FileURL: url,
 	}
 
-	log.Debug("Log message: ", logMsg)
 	err = h.logQueue.SendToQueue(logMsg)
 	if err != nil {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "QUEUE_ERROR", fmt.Errorf("Failed to send to queue. %v", err)).WriteToJSON(c)
 	}
 
-	return response.SuccessResponse(200, response.Success, "File uploaded successfully").WriteToJSON(c)
+	return response.SuccessResponse(200, response.Success,
+		map[string]any{
+			"jobID": logMsg.JobID,
+		},
+	).WriteToJSON(c)
 }

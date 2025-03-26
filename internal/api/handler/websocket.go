@@ -12,10 +12,10 @@ import (
 )
 
 type WebSocketManager struct {
-	ProgressMessenger queue.ProgressMessenger
+	ProgressMessenger queue.LiveStatusQueue
 }
 
-func NewWebSocketManager(liveProgressMessenger queue.ProgressMessenger) *WebSocketManager {
+func NewWebSocketManager(liveProgressMessenger queue.LiveStatusQueue) *WebSocketManager {
 	return &WebSocketManager{
 		ProgressMessenger: liveProgressMessenger,
 	}
@@ -26,7 +26,6 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 	defer cancel()
 
 	jobID := c.Params("jobID") // Extract job ID from URL
-	fmt.Println("Job ID:", jobID)
 
 	//first check in database. -->to do later
 
@@ -38,16 +37,16 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 	msgs, err := wsm.ProgressMessenger.WaitAndRecieveProgressMsgsQueue(ctx, jobID)
 	if err != nil {
 		if err == queue.ErrCtxCancelled {
+			fmt.Println("Context cancelled: stopping queue wait for ", jobID)
 			c.WriteMessage(websocket.TextMessage, []byte("Error: Context timeout"))
 		} else {
 			c.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
-			log.Println("consumeResults error:", err)
+			log.Println("error while waiting for progress messages:", err)
 		}
 		return
 	}
 
 	for msg := range msgs {
-		fmt.Println("Message received:", string(msg.Body))
 		if err := c.WriteMessage(websocket.TextMessage, msg.Body); err != nil {
 			c.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
 			log.Println("WebSocket send error:", err)
@@ -57,5 +56,5 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 
 	//get final data from db: -->to do later
 
-	c.WriteMessage(websocket.TextMessage, []byte("Final result: bla bla bal"))
+	c.WriteMessage(websocket.TextMessage, []byte("Completed"))
 }

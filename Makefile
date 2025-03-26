@@ -1,11 +1,11 @@
 .PHONY: build run dev
 
 build:
-	go build -o ./cmd/main ./cmd
+	go build -o ./cmd/api/main ./cmd/api
 
 run:
-	go run ./cmd/main.go
+	go run ./cmd/api/main.go
 
 # Hot-reloading with CompileDaemon
 dev:
-	CompileDaemon -build="go build -o ./cmd/main ./cmd" -command=./cmd/main
+	CompileDaemon -build="go build -o ./cmd/api/main ./cmd/api" -command=./cmd/api/main

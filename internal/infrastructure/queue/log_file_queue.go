@@ -3,7 +3,6 @@ package queue
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/streadway/amqp"
 )
@@ -26,7 +25,7 @@ type (
 
 	LogQueue interface {
 		LogQueueReceiver
-		LogQueueReceiver
+		LogQueueSender
 	}
 
 	rabbitMqLogFileQueue struct {
@@ -61,8 +60,8 @@ func NewRabbitMQLogQueue(rabbitConfig RabbitMQConfig, exchange, queue string) (*
 	}
 
 	err = ch.QueueBind(
-		queue,  
-		queue,    // Routing key same as queue name for direct exchange
+		queue,
+		queue, // Routing key same as queue name for direct exchange
 		exchange,
 		false,
 		nil,
@@ -102,7 +101,7 @@ func (rq *rabbitMqLogFileQueue) SendToQueue(logMsg LogMessage) error {
 		return fmt.Errorf("failed to publish message: %v", err)
 	}
 
-	log.Printf("✅ Sent message to RabbitMQ: %s\n", msgBody)
+	// log.Printf("✅ Sent message to RabbitMQ: %s\n", msgBody)
 	return nil
 }
 
