@@ -6,7 +6,6 @@ import (
 	"log-flow/internal/utils/validation"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/supabase-community/gotrue-go/types"
 )
 
@@ -42,9 +41,6 @@ func (h *HttpHandler) Register(c *fiber.Ctx) response.HandledResponse {
 	user, err := h.supabaseAuth.Signup(types.SignupRequest{
 		Email:    req.Email,
 		Password: req.Password,
-		Data: map[string]interface{}{
-			"userID": uuid.New(),
-		},
 	})
 	if err != nil {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "SIGNUP_FAILED", fmt.Errorf("Failed to signup. %v", err))
