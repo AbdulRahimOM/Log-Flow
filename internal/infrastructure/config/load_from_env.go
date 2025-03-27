@@ -21,6 +21,10 @@ var Env struct {
 	LogConfig      `mapstructure:",squash"`
 }
 
+var Dev struct {
+	SimulateLogProcessingLagMs int `mapstructure:"DEV_SIMULATE_LOG_PROCESSING_LAG_MS"`
+}
+
 func loadEnv() error {
 	viper.AutomaticEnv()
 	viper.SetConfigName(".env")
@@ -36,5 +40,10 @@ func loadEnv() error {
 		return fmt.Errorf("error occured while writing env values onto variables, error: %v", err)
 	}
 
+	err = viper.Unmarshal(&Dev)
+	if err != nil {
+		return fmt.Errorf("error occured while writing dev env values onto variables, error: %v", err)
+	}
+	fmt.Println("Dev: ", Dev)
 	return nil
 }
