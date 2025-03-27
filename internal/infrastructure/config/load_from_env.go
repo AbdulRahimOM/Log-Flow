@@ -44,6 +44,6 @@ func loadEnv() error {
 	if err != nil {
 		return fmt.Errorf("error occured while writing dev env values onto variables, error: %v", err)
 	}
-	fmt.Println("Dev: ", Dev)
+
 	return nil
 }

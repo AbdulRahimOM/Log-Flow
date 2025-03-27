@@ -33,6 +33,10 @@ type InvalidField struct {
 	Value       interface{} `json:"value"`
 }
 
+func (ver *ValidationErrorResponse) WriteToJSON(c *fiber.Ctx) error {
+	return c.Status(http.StatusBadRequest).JSON(ver)
+}
+
 func ErrorResponse(statusCode int, respcode string, err error) *Response {
 	return &Response{
 		HttpStatusCode: statusCode,
@@ -86,14 +90,14 @@ func NotFoundResponse(itemName string) *Response {
 	return ErrorResponse(http.StatusNotFound, NotFound, fmt.Errorf("not found: %v", itemName))
 }
 
-func (resp *Response) WriteToJSON(c *fiber.Ctx) error {
+func (resp Response) WriteToJSON(c *fiber.Ctx) error {
 
 	if resp.Error == nil {
 		return c.Status(resp.HttpStatusCode).JSON(resp)
 	}
 
 	newCustError := custError{
-		Response: *resp,
+		Response: resp,
 	}
 	if resp.Error != nil {
 		newCustError.Error = resp.Error.Error()

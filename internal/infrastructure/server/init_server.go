@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/supabase-community/gotrue-go"
 )
 
 const (
@@ -34,13 +35,15 @@ func InitializeServer() *fiber.App {
 	fileStore := storage.NewSupabaseStorage(config.Env.SupaBaseURL, config.Env.SupaBaseKey, config.Env.SupaBaseBucket)
 	logFileQueue := queue.InitLogQueue()
 	liveProgressMessenger := queue.InitLiveStatusQueue()
+	supabaseAuth := gotrue.New("mlvrrjjrhybrovqoijna",
+		config.Env.SupaBaseKey)
 
 	//workers
 	workers := workers.NewWorkers(database, fileStore, logFileQueue, liveProgressMessenger, config.Env.LogConfig.Keywords)
 	workers.StartMany(numOfWorkers)
 
 	//handlers
-	httpHandler := handler.NewHttpHandler(logFileQueue, fileStore, database)
+	httpHandler := handler.NewHttpHandler(logFileQueue, fileStore, database, supabaseAuth)
 	websocketManager := handler.NewWebSocketManager(liveProgressMessenger, database)
 
 	//initialize routes

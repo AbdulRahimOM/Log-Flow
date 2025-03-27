@@ -9,7 +9,6 @@ import (
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
 	"log-flow/internal/utils/helper"
-	"log-flow/internal/utils/utils"
 	"math"
 	"strings"
 	"sync"
@@ -160,7 +159,7 @@ func (lp *LogProcessor) sendLiveUpdates() {
 					"warn":  lp.metrics.WarnCount,
 					"info":  lp.metrics.InfoCount,
 				},
-				KeyWordCounts: utils.GetMapCopy(lp.metrics.KeyWordsCount),
+				KeyWordCounts: helper.GetMapCopy(lp.metrics.KeyWordsCount),
 				Status:        "In Progress",
 			}
 			lp.mutex.Unlock()
@@ -190,7 +189,7 @@ func (lp *LogProcessor) sendLiveUpdates() {
 					"warn":  lp.metrics.WarnCount,
 					"info":  lp.metrics.InfoCount,
 				},
-				KeyWordCounts: utils.GetMapCopy(lp.metrics.KeyWordsCount),
+				KeyWordCounts: helper.GetMapCopy(lp.metrics.KeyWordsCount),
 				Status:        "Completed",
 			}
 			lp.mutex.Unlock()
@@ -221,14 +220,14 @@ func (lp *LogProcessor) SaveFinalMetrics() error {
 		WarnCount:            lp.metrics.WarnCount,
 		InfoCount:            lp.metrics.InfoCount,
 		UniqueIPs:            len(lp.metrics.UniqueIPs),
-		TrackedKeywordsCount: utils.GetMapCopy(lp.metrics.KeyWordsCount),
+		TrackedKeywordsCount: helper.GetMapCopy(lp.metrics.KeyWordsCount),
 		InvalidLogs:          lp.metrics.InvalidLogs,
 		CreatedAt:            time.Now(),
 	}
 
 	err := logReport.Create(lp.db)
 	if err != nil {
-		return fmt.Errorf("Error saving log report: %v", err)
+		return err
 	}
 
 	return nil
