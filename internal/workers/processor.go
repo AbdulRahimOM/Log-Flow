@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log-flow/internal/domain/models"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
 	"log-flow/internal/utils/helper"
@@ -12,11 +13,14 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type LogProcessor struct {
 	liveStatusQueue queue.LiveStatusQueueSession
 	storage         storage.Storage
+	db              *gorm.DB
 	metrics         *LogMetrics
 	stopChan        chan struct{}
 	mutex           sync.Mutex
@@ -27,8 +31,9 @@ type LogProcessor struct {
 
 func NewLogProcessor(
 	progressMessenger queue.LiveStatusQueue,
-	storage storage.Storage,
 	progressQueue queue.LiveStatusQueue,
+	storage storage.Storage,
+	db *gorm.DB,
 	jobID string,
 ) (*LogProcessor, error) {
 
@@ -42,6 +47,7 @@ func NewLogProcessor(
 		metrics:         &LogMetrics{UniqueIPs: make(map[string]struct{})},
 		stopChan:        make(chan struct{}),
 		jobID:           jobID,
+		db:              db,
 	}, nil
 }
 
@@ -62,6 +68,12 @@ func (lp *LogProcessor) ProcessLogFile(logMessage queue.LogMessage) {
 	lp.processLogs(logStream)
 
 	close(lp.stopChan)
+
+	err = lp.SaveFinalMetrics()
+	if err != nil {
+		log.Errorf("Error saving final metrics: %v", err)
+	}
+
 	lp.liveStatusQueue.Delete()
 }
 
@@ -103,7 +115,6 @@ func (lp *LogProcessor) processLogs(logStream io.ReadCloser) {
 	if err := scanner.Err(); err != nil {
 		log.Errorf("Error reading log stream: %v", err)
 	}
-	time.Sleep(2 * time.Second)
 }
 
 func (lp *LogProcessor) sendLiveUpdates() {
@@ -113,16 +124,18 @@ func (lp *LogProcessor) sendLiveUpdates() {
 	for {
 		select {
 		case <-ticker.C:
-			if _,ok:=ActiveJobs.Load(lp.jobID);!ok{
-				return
+			if _, ok := ActiveJobs.Load(lp.jobID); !ok {
+				log.Trace("No websockets listening for job: %v", lp.jobID)
+				continue
 			}
 			lp.mutex.Lock()
 			progress := lp.calculateProgress()
 			stats := LogLiveStats{
-				JobID:             lp.jobID,
-				Progress:          progress,
-				UniqueIPs:         len(lp.metrics.UniqueIPs),
-				ParsingErrorCount: lp.metrics.InvalidLogs,
+				JobID:              lp.jobID,
+				Progress:           progress,
+				UniqueIPs:          len(lp.metrics.UniqueIPs),
+				InvalidLogs:        lp.metrics.InvalidLogs,
+				TotalLogsProcessed: lp.metrics.LogsProcessed,
 				LogLevelCounts: map[string]int{
 					"error": lp.metrics.ErrorCount,
 					"warn":  lp.metrics.WarnCount,
@@ -141,12 +154,17 @@ func (lp *LogProcessor) sendLiveUpdates() {
 			lp.liveStatusQueue.SendIntermediateResult(strMessage)
 
 		case <-lp.stopChan:
+			if _, ok := ActiveJobs.Load(lp.jobID); !ok {
+				log.Trace("No websockets listening for job: %v", lp.jobID)
+				return
+			}
 			lp.mutex.Lock()
 			stats := LogLiveStats{
-				JobID:             lp.jobID,
-				Progress:          100,
-				UniqueIPs:         len(lp.metrics.UniqueIPs),
-				ParsingErrorCount: lp.metrics.InvalidLogs,
+				JobID:              lp.jobID,
+				Progress:           100,
+				UniqueIPs:          len(lp.metrics.UniqueIPs),
+				InvalidLogs:        lp.metrics.InvalidLogs,
+				TotalLogsProcessed: lp.metrics.LogsProcessed,
 				LogLevelCounts: map[string]int{
 					"error": lp.metrics.ErrorCount,
 					"warn":  lp.metrics.WarnCount,
@@ -170,4 +188,26 @@ func (lp *LogProcessor) sendLiveUpdates() {
 
 func (lp *LogProcessor) calculateProgress() float64 {
 	return math.Round(min((float64(lp.metrics.ProcessedSize)/float64(lp.totalSize))*100, 100))
+}
+
+func (lp *LogProcessor) SaveFinalMetrics() error {
+	lp.mutex.Lock()
+	defer lp.mutex.Unlock()
+	logReport := models.LogReport{
+		JobID:       uuid.MustParse(lp.jobID),
+		TotalLogs:   lp.metrics.LogsProcessed,
+		ErrorCount:  lp.metrics.ErrorCount,
+		WarnCount:   lp.metrics.WarnCount,
+		InfoCount:   lp.metrics.InfoCount,
+		UniqueIPs:   len(lp.metrics.UniqueIPs),
+		InvalidLogs: lp.metrics.InvalidLogs,
+		CreatedAt:   time.Now(),
+	}
+
+	err := logReport.Create(lp.db)
+	if err != nil {
+		return fmt.Errorf("Error saving log report: %v", err)
+	}
+
+	return nil
 }

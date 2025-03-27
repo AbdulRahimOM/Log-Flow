@@ -9,7 +9,7 @@ import (
 func mountLogRoutes(app *fiber.App, handler *handler.HttpHandler) {
 	api := app.Group("/api")
 	{
-		api.Post("/upload-logs", handler.UploadLogs)
+		api.Post("/upload-logs", responseWrapper(handler.UploadLogs))
 		// api.Get("/stats", handler.FetchStats)
 		// api.Get("/stats/:jobId", handler.FetchStatsByJobId)
 		// api.Get("/queue-status", handler.GetQueueStatus)

@@ -24,11 +24,11 @@ func (q *LiveStatusQueueSession) SendIntermediateResult(result string) {
 		fmt.Println("RabbitMQ Publish Error:", err)
 	}
 
-	log.Debug("✅ Sent intermediate result to RabbitMQ:", result)
+	log.Trace("✅ Sent intermediate result to RabbitMQ:", result)
 }
 
 func (q *LiveStatusQueueSession) Delete() {
-	time.Sleep(3 * time.Second) // Wait for 3 seconds before deleting the queue, so that the client can consume all messages
+	time.Sleep(3 * time.Second) // Wait for 3 seconds before deleting the queue, so that the client can consume all messages//Temporary
 	_, err := q.ch.QueueDelete(q.queueName, false, false, false)
 	if err != nil {
 		log.Error("❌ Failed to delete queue: %v", err)

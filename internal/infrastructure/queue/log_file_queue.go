@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/streadway/amqp"
 )
 
@@ -101,7 +102,7 @@ func (rq *rabbitMqLogFileQueue) SendToQueue(logMsg LogMessage) error {
 		return fmt.Errorf("failed to publish message: %v", err)
 	}
 
-	// log.Printf("✅ Sent message to RabbitMQ: %s\n", msgBody)
+	log.Trace("✅ Sent message to RabbitMQ: %s\n", msgBody)
 	return nil
 }
 
