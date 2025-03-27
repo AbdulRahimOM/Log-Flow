@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetJobByIDAndUserID(db *gorm.DB, id, userID string) (*Job, error) {
+func GetJobByID(db *gorm.DB, jobID string) (*Job, error) {
 	var job Job
-	result := db.Where("id = ? AND user_id = ?", id, userID).First(&job)
+	result := db.Where("id = ?", jobID).First(&job)
 	if result.Error != nil {
 		return nil, result.Error
 	}
