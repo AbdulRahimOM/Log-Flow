@@ -36,7 +36,7 @@ func InitializeServer() *fiber.App {
 	liveProgressMessenger := queue.InitLiveStatusQueue()
 
 	//workers
-	workers := workers.NewWorkers(database, fileStore, logFileQueue, liveProgressMessenger)
+	workers := workers.NewWorkers(database, fileStore, logFileQueue, liveProgressMessenger, config.Env.LogConfig.Keywords)
 	workers.StartMany(numOfWorkers)
 
 	//handlers

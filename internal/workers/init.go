@@ -14,18 +14,20 @@ import (
 var ActiveJobs sync.Map
 
 type Worker struct {
-	db          *gorm.DB
-	resultQueue queue.LiveStatusQueue
-	logQueue    queue.LogQueueReceiver
-	storage     storage.Storage
+	db              *gorm.DB
+	resultQueue     queue.LiveStatusQueue
+	logQueue        queue.LogQueueReceiver
+	storage         storage.Storage
+	keyWordsToTrack []string
 }
 
-func NewWorkers(db *gorm.DB, storage storage.Storage, logQueue queue.LogQueueReceiver, progressQueue queue.LiveStatusQueue) *Worker {
+func NewWorkers(db *gorm.DB, storage storage.Storage, logQueue queue.LogQueueReceiver, progressQueue queue.LiveStatusQueue, keyWordsToTrack []string) *Worker {
 	return &Worker{
-		db:          db,
-		resultQueue: progressQueue,
-		logQueue:    logQueue,
-		storage:     storage,
+		db:              db,
+		resultQueue:     progressQueue,
+		logQueue:        logQueue,
+		storage:         storage,
+		keyWordsToTrack: keyWordsToTrack,
 	}
 }
 
@@ -51,7 +53,7 @@ func (w *Worker) start(workerID int) {
 			continue
 		}
 
-		logProcessor, err := NewLogProcessor(w.resultQueue, w.resultQueue, w.storage, w.db, logMsg.JobID)
+		logProcessor, err := NewLogProcessor(w.resultQueue, w.resultQueue, w.storage, w.db, w.keyWordsToTrack, logMsg.JobID)
 		if err != nil {
 			log.Error("❌ Failed to create log processor: %v", err) //need to implement retry logic
 			continue

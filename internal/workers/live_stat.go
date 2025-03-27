@@ -15,6 +15,7 @@ type LogLiveStats struct {
 	TotalLogsProcessed int            `json:"totalLogsProcessed"`
 	Status             string         `json:"status"` //Started, In Progress, Completed
 	LogLevelCounts     map[string]int `json:"logLevelCounts"`
+	KeyWordCounts      map[string]int `json:"keyWordCounts"`
 }
 
 func (lls *LogLiveStats) GetMessage() (string, error) {
@@ -33,5 +34,6 @@ type LogMetrics struct {
 	ErrorCount    int
 	WarnCount     int
 	InfoCount     int
-	UniqueIPs     map[string]struct{}
+	UniqueIPs      map[string]struct{}
+	KeyWordsCount map[string]int
 }

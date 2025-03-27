@@ -18,6 +18,7 @@ func main() {
 		models.User{},
 		models.Job{},
 		models.LogReport{},
+		models.TrackedKeywordsCount{},
 	})
 	if err != nil {
 		log.Fatalf(err.Error())

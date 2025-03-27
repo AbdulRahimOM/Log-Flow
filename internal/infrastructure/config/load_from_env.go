@@ -18,6 +18,7 @@ var Env struct {
 	SupaBase       `mapstructure:",squash"`
 	Postgres       `mapstructure:",squash"`
 	RabbitMQConfig `mapstructure:",squash"`
+	LogConfig      `mapstructure:",squash"`
 }
 
 func loadEnv() error {

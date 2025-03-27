@@ -11,14 +11,16 @@ func IsValidLogFile(filename string) bool {
 	return strings.HasSuffix(filename, ".log")
 }
 
-// Extract log level and IP from log entry
-func ExtractLogDetails(logEntry string) (string, string, error) {
+// Extract log level, log payload and IP from log entry
+func ExtractLogDetails(logEntry string) (string, string, string, error) {
 	parts := strings.SplitN(logEntry, " ", 3)
 	if len(parts) < 3 {
-		return "UNKNOWN", "", fmt.Errorf("invalid log format: %s", logEntry)
+		return "UNKNOWN", "", "", fmt.Errorf("invalid log format: %s", logEntry)
 	}
 
 	level := parts[1]
+	logPayload := parts[2]
+
 	ip := ""
 
 	// Extract IP if available in JSON payload
@@ -32,5 +34,5 @@ func ExtractLogDetails(logEntry string) (string, string, error) {
 		}
 	}
 
-	return level, ip, nil
+	return level, logPayload, ip, nil
 }
