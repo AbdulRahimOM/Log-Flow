@@ -62,7 +62,7 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 	}
 
 	//if log report not found, then check if job is registered
-	job, err := models.GetJobByID(wsm.db, jobID)
+	job, err := models.GetJobByIDAndUserID(wsm.db, jobID, "")
 	if err != nil {
 		c.WriteMessage(websocket.TextMessage, []byte("Database error occured while fetching job details"))
 		log.Error("Error while fetching job details:", err)

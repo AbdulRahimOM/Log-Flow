@@ -6,6 +6,7 @@ import (
 	"log-flow/internal/domain/response"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/utils/helper"
+	"log-flow/internal/utils/locals"
 	"time"
 
 	_ "log-flow/internal/infrastructure/db"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/google/uuid"
 )
 
 const (
@@ -31,12 +31,18 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 		return response.ErrorResponse(fiber.StatusBadRequest, "NOT_SUPPORTED_FILE", fmt.Errorf("File type not supported. %v", err))
 	}
 
-	url, err := h.fileStorage.UploadFile(file)
-	if err != nil {
-		return response.ErrorResponse(fiber.StatusInternalServerError, "UPLOAD_FAILED", fmt.Errorf("Failed to upload file. %v", err))
-	}
+	userID := locals.GetUserID(c)
+
+	// url, err := h.fileStorage.UploadFile(file)
+	// if err != nil {
+	// 	return response.ErrorResponse(fiber.StatusInternalServerError, "UPLOAD_FAILED", fmt.Errorf("Failed to upload file. %v", err))
+	// }
+	url := "https://mlvrrjjrhybrovqoijna.supabase.co/storage/v1/object/sign/log-flow-logs/sample.log?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJsb2ctZmxvdy1sb2dzL3NhbXBsZS5sb2ciLCJpYXQiOjE3NDMwODcxMjIsImV4cCI6MTc0MzQ0NzEyMn0.RolVTgUtGgtAX1zIbT244fPrj4OLRJmksBVSdjY0-Mk"
 	log.Debug("File uploaded. URL: ", url)
-	jobID := uuid.New()
+	jobID, err := helper.GenerateUserIDPrefixedUUID(userID)
+	if err != nil {
+		return response.ErrorResponse(fiber.StatusInternalServerError, "UUID_ERROR", fmt.Errorf("Failed to generate UUID. %v", err))
+	}
 
 	logMsg := queue.LogMessage{
 		JobID:   jobID.String(),
@@ -49,10 +55,10 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 	}
 
 	job := models.Job{
-		ID: jobID,
-		// UserID:            c.Locals("userID").(uuid.UUID),
-		FileURL:           url,
-		LogFileUploadedAt: time.Now(),
+		ID:         jobID,
+		UserID:     userID,
+		FileURL:    url,
+		UploadedAt: time.Now(),
 	}
 	if err = job.Create(h.db); err != nil {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "DB_ERROR", fmt.Errorf("Failed to save job to db. %v", err))
@@ -63,4 +69,28 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 			"jobID": logMsg.JobID,
 		},
 	)
+}
+
+func (h *HttpHandler) FetchStatsByJobId(c *fiber.Ctx) response.HandledResponse {
+	jobID := c.Params("jobID")
+
+	job, err := models.GetLogReportByJobID(h.db, jobID)
+	if err != nil {
+		return response.ErrorResponse(fiber.StatusInternalServerError, "DB_ERROR", fmt.Errorf("Failed to get job details. %v", err))
+	}
+	if job == nil {
+		return response.ErrorResponse(fiber.StatusNotFound, "JOB_NOT_FOUND", fmt.Errorf("Job not found."))
+	}
+
+	return response.SuccessResponse(200, response.Success, job)
+}
+
+func (h *HttpHandler) FetchStats(c *fiber.Ctx) response.HandledResponse {
+	userID := locals.GetUserID(c)
+	results, err := models.GetWholeLogReportsAggregate(h.db, userID)
+	if err != nil {
+		return response.DBErrorResponse(fmt.Errorf("Failed to get whole log reports aggregate. %v", err))
+	}
+
+	return response.SuccessResponse(200, response.Success, results)
 }

@@ -6,9 +6,10 @@ type AppSettings struct {
 }
 
 type SupaBase struct {
-	SupaBaseURL    string `mapstructure:"SUPABASE_URL"`
-	SupaBaseKey    string `mapstructure:"SUPABASE_KEY"`
-	SupaBaseBucket string `mapstructure:"SUPABASE_BUCKET"`
+	SupaBaseURL       string `mapstructure:"SUPABASE_URL"`
+	SupaBaseKey       string `mapstructure:"SUPABASE_KEY"`
+	SupaBaseBucket    string `mapstructure:"SUPABASE_BUCKET"`
+	SupaBaseJwtSecret string `mapstructure:"SUPABASE_JWT_SECRET_KEY"`
 }
 
 type Postgres struct {

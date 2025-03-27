@@ -15,7 +15,6 @@ func main() {
 	db := db.GetDB()
 
 	err := migrateTables(db, []models.DbTablesWithName{
-		models.User{},
 		models.Job{},
 		models.LogReport{},
 		models.TrackedKeywordsCount{},
