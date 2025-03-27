@@ -33,12 +33,12 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 
 	userID := locals.GetUserID(c)
 
-	// url, err := h.fileStorage.UploadFile(file)
-	// if err != nil {
-	// 	return response.ErrorResponse(fiber.StatusInternalServerError, "UPLOAD_FAILED", fmt.Errorf("Failed to upload file. %v", err))
-	// }
-	url := "https://mlvrrjjrhybrovqoijna.supabase.co/storage/v1/object/sign/log-flow-logs/sample.log?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJsb2ctZmxvdy1sb2dzL3NhbXBsZS5sb2ciLCJpYXQiOjE3NDMwODcxMjIsImV4cCI6MTc0MzQ0NzEyMn0.RolVTgUtGgtAX1zIbT244fPrj4OLRJmksBVSdjY0-Mk"
+	url, err := h.fileStorage.UploadFile(file)
+	if err != nil {
+		return response.ErrorResponse(fiber.StatusInternalServerError, "UPLOAD_FAILED", fmt.Errorf("Failed to upload file. %v", err))
+	}
 	log.Debug("File uploaded. URL: ", url)
+
 	jobID, err := helper.GenerateUserIDPrefixedUUID(userID)
 	if err != nil {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "UUID_ERROR", fmt.Errorf("Failed to generate UUID. %v", err))
