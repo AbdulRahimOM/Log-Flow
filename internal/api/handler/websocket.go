@@ -3,21 +3,25 @@ package handler
 import (
 	"context"
 	"fmt"
-	"log"
+	"log-flow/internal/domain/models"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/workers"
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
+	"github.com/gofiber/fiber/v2/log"
+	"gorm.io/gorm"
 )
 
 type WebSocketManager struct {
 	ProgressMessenger queue.LiveStatusQueue
+	db                *gorm.DB
 }
 
-func NewWebSocketManager(liveProgressMessenger queue.LiveStatusQueue) *WebSocketManager {
+func NewWebSocketManager(liveProgressMessenger queue.LiveStatusQueue, db *gorm.DB) *WebSocketManager {
 	return &WebSocketManager{
 		ProgressMessenger: liveProgressMessenger,
+		db:                db,
 	}
 }
 
@@ -27,9 +31,49 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 
 	jobID := c.Params("jobID") // Extract job ID from URL
 
-	//first check in database. -->to do later
+	logReport, err := models.GetLogReportByJobID(wsm.db, jobID)
+	if err != nil && err.Error() != "record not found" {
+		c.WriteMessage(websocket.TextMessage, []byte("Database error occured while fetching job details"))
+		log.Error("Error while fetching job details:", err)
+		return
+	}
+	if logReport != nil {
+		//send log report to client
+		logReport := workers.LogLiveStats{
+			JobID:              jobID,
+			Progress:           100,
+			Status:             "Completed",
+			UniqueIPs:          logReport.UniqueIPs,
+			InvalidLogs:        logReport.InvalidLogs,
+			TotalLogsProcessed: logReport.TotalLogs,
+			LogLevelCounts: map[string]int{
+				"ERROR": logReport.ErrorCount,
+				"WARN":  logReport.WarnCount,
+				"INFO":  logReport.InfoCount,
+			},
+		}
+		message, err := logReport.GetMessage()
+		if err != nil {
+			c.WriteMessage(websocket.TextMessage, []byte("Some error occured while parsing log report"))
+		} else {
+			c.WriteMessage(websocket.TextMessage, []byte(message))
+		}
+		return
+	}
 
-	c.WriteMessage(websocket.TextMessage, []byte("Your job is in queue. Please wait..."))
+	//if log report not found, then check if job is registered
+	job, err := models.GetJobByID(wsm.db, jobID)
+	if err != nil {
+		c.WriteMessage(websocket.TextMessage, []byte("Database error occured while fetching job details"))
+		log.Error("Error while fetching job details:", err)
+		return
+	}
+	if job == nil {
+		c.WriteMessage(websocket.TextMessage, []byte("Job not registered(Invalid Job ID)"))
+		return
+	}
+
+	//Job registered, but log report not found. So, listen for progress messages
 
 	workers.ActiveJobs.Store(jobID, true)
 	defer workers.ActiveJobs.Delete(jobID) // Remove when client disconnects
@@ -41,7 +85,7 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 			c.WriteMessage(websocket.TextMessage, []byte("Error: Context timeout"))
 		} else {
 			c.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
-			log.Println("error while waiting for progress messages:", err)
+			log.Warn("error while waiting for progress messages:", err)
 		}
 		return
 	}
@@ -49,12 +93,10 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 	for msg := range msgs {
 		if err := c.WriteMessage(websocket.TextMessage, msg.Body); err != nil {
 			c.WriteMessage(websocket.TextMessage, []byte("Error: "+err.Error()))
-			log.Println("WebSocket send error:", err)
+			log.Error("WebSocket send error:", err)
 			break
 		}
 	}
-
-	//get final data from db: -->to do later
 
 	c.WriteMessage(websocket.TextMessage, []byte("Completed"))
 }

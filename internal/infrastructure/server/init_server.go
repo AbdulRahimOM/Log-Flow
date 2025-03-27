@@ -7,7 +7,6 @@ import (
 	"log-flow/internal/infrastructure/db"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
-	"log-flow/internal/repo"
 	"log-flow/internal/workers"
 
 	"github.com/gofiber/fiber/v2"
@@ -36,16 +35,13 @@ func InitializeServer() *fiber.App {
 	logFileQueue := queue.InitLogQueue()
 	liveProgressMessenger := queue.InitLiveStatusQueue()
 
-	//repo
-	repo := repo.NewRepo(database)
-
 	//workers
-	workers := workers.NewWorkers(repo, fileStore, logFileQueue, liveProgressMessenger)
+	workers := workers.NewWorkers(database, fileStore, logFileQueue, liveProgressMessenger)
 	workers.StartMany(numOfWorkers)
 
 	//handlers
-	httpHandler := handler.NewHttpHandler(logFileQueue, fileStore, repo)
-	websocketManager := handler.NewWebSocketManager(liveProgressMessenger)
+	httpHandler := handler.NewHttpHandler(logFileQueue, fileStore, database)
+	websocketManager := handler.NewWebSocketManager(liveProgressMessenger, database)
 
 	//initialize routes
 	routes.MountRoutes(app, httpHandler, websocketManager)

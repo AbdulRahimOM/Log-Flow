@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log-flow/internal/domain/models"
 	"log-flow/internal/infrastructure/db"
+
+	"github.com/gofiber/fiber/v2/log"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -11,11 +14,25 @@ func main() {
 
 	db := db.GetDB()
 
-	err := db.AutoMigrate(&models.LogReport{})
+	err := migrateTables(db, []models.DbTablesWithName{
+		models.User{},
+		models.Job{},
+		models.LogReport{},
+	})
 	if err != nil {
-		fmt.Println("Error migrating logs table: ", err)
+		log.Fatalf(err.Error())
 	}
 
 	fmt.Println("Logs table migrated successfully")
+}
 
+func migrateTables(db *gorm.DB, tables []models.DbTablesWithName) error {
+	for _, table := range tables {
+		err := db.AutoMigrate(table)
+		if err != nil {
+			return fmt.Errorf("Error migrating table %s: %v", table.TableName(), err)
+		}
+	}
+
+	return nil
 }

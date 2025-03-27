@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
-	"log-flow/internal/repo"
 	"sync"
 
 	"github.com/gofiber/fiber/v2/log"
+	"gorm.io/gorm"
 )
 
 var ActiveJobs sync.Map
 
 type Worker struct {
-	repo        repo.Repository
+	db          *gorm.DB
 	resultQueue queue.LiveStatusQueue
 	logQueue    queue.LogQueueReceiver
 	storage     storage.Storage
 }
 
-func NewWorkers(repo repo.Repository, storage storage.Storage, logQueue queue.LogQueueReceiver, progressQueue queue.LiveStatusQueue) *Worker {
+func NewWorkers(db *gorm.DB, storage storage.Storage, logQueue queue.LogQueueReceiver, progressQueue queue.LiveStatusQueue) *Worker {
 	return &Worker{
-		repo:        repo,
+		db:          db,
 		resultQueue: progressQueue,
 		logQueue:    logQueue,
 		storage:     storage,
@@ -51,7 +51,7 @@ func (w *Worker) start(workerID int) {
 			continue
 		}
 
-		logProcessor, err := NewLogProcessor(w.resultQueue, w.storage, w.resultQueue, logMsg.JobID)
+		logProcessor, err := NewLogProcessor(w.resultQueue, w.resultQueue, w.storage, w.db, logMsg.JobID)
 		if err != nil {
 			log.Error("❌ Failed to create log processor: %v", err) //need to implement retry logic
 			continue
@@ -59,6 +59,6 @@ func (w *Worker) start(workerID int) {
 
 		logProcessor.ProcessLogFile(logMsg)
 
-		// log.Debugf("✅ @Received message from RabbitMQ by worker(%d)..: %s\n", workerID, logMsg.FileURL)
+		log.Trace("✅ @Received message from RabbitMQ by worker(%d)..: %s\n", workerID, logMsg.FileURL)
 	}
 }

@@ -1,11 +1,15 @@
 package handler
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"log-flow/internal/domain/response"
 
-func (h *HttpHandler) Login(c *fiber.Ctx) error {
-	return c.SendString("Login")
+	"github.com/gofiber/fiber/v2"
+)
+
+func (h *HttpHandler) Login(c *fiber.Ctx) response.HandledResponse {
+	return nil
 }
 
-func (h *HttpHandler) Register(c *fiber.Ctx) error {
-	return c.SendString("Register")
+func (h *HttpHandler) Register(c *fiber.Ctx) response.HandledResponse {
+	return nil
 }
