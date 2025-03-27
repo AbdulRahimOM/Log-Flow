@@ -10,8 +10,9 @@ import (
 
 	_ "log-flow/internal/infrastructure/db"
 
+	_ "log-flow/internal/infrastructure/db"
+
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/google/uuid"
 )
 
@@ -19,7 +20,11 @@ const (
 	uploadsDir = "./uploads"
 )
 
+<<<<<<< HEAD
 func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
+=======
+func (h *HttpHandler) UploadLogs(c *fiber.Ctx) error {
+>>>>>>> 96eb9961e0f7697b47c6ea0b2bdd61f4581f4779
 	file, err := c.FormFile("file")
 	if err != nil {
 		return response.ErrorResponse(fiber.StatusBadRequest, "INVALID_FILE", fmt.Errorf("Invalid file. %v", err))
@@ -46,6 +51,7 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "QUEUE_ERROR", fmt.Errorf("Failed to send to queue. %v", err))
 	}
 
+<<<<<<< HEAD
 	job := models.Job{
 		ID: jobID,
 		// UserID:            c.Locals("userID").(uuid.UUID),
@@ -56,9 +62,15 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "DB_ERROR", fmt.Errorf("Failed to save job to db. %v", err))
 	}
 
+=======
+>>>>>>> 96eb9961e0f7697b47c6ea0b2bdd61f4581f4779
 	return response.SuccessResponse(200, response.Success,
 		map[string]any{
 			"jobID": logMsg.JobID,
 		},
+<<<<<<< HEAD
 	)
+=======
+	).WriteToJSON(c)
+>>>>>>> 96eb9961e0f7697b47c6ea0b2bdd61f4581f4779
 }
