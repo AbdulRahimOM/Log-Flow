@@ -26,3 +26,7 @@ type RabbitMQConfig struct {
 	User     string `mapstructure:"RABBITMQ_USER"`
 	Password string `mapstructure:"RABBITMQ_PASSWORD"`
 }
+
+type LogConfig struct {
+	Keywords []string `mapstructure:"KEYWORDS"`
+}

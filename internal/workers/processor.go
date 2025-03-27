@@ -8,7 +8,9 @@ import (
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
 	"log-flow/internal/utils/helper"
+	"log-flow/internal/utils/utils"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +23,7 @@ type LogProcessor struct {
 	liveStatusQueue queue.LiveStatusQueueSession
 	storage         storage.Storage
 	db              *gorm.DB
+	keyWordsToTrack []string
 	metrics         *LogMetrics
 	stopChan        chan struct{}
 	mutex           sync.Mutex
@@ -34,6 +37,7 @@ func NewLogProcessor(
 	progressQueue queue.LiveStatusQueue,
 	storage storage.Storage,
 	db *gorm.DB,
+	keyWordsToTrack []string,
 	jobID string,
 ) (*LogProcessor, error) {
 
@@ -41,13 +45,18 @@ func NewLogProcessor(
 	if err != nil {
 		return nil, fmt.Errorf("Error starting live stats queue: %v", err)
 	}
+
 	return &LogProcessor{
 		liveStatusQueue: *queueSession,
 		storage:         storage,
-		metrics:         &LogMetrics{UniqueIPs: make(map[string]struct{})},
-		stopChan:        make(chan struct{}),
-		jobID:           jobID,
 		db:              db,
+		keyWordsToTrack: keyWordsToTrack,
+		metrics: &LogMetrics{
+			UniqueIPs:     make(map[string]struct{}),
+			KeyWordsCount: make(map[string]int),
+		},
+		stopChan: make(chan struct{}),
+		jobID:    jobID,
 	}, nil
 }
 
@@ -83,10 +92,16 @@ func (lp *LogProcessor) processLogs(logStream io.ReadCloser) {
 		logEntry := scanner.Text()
 
 		lp.mutex.Lock()
-		logLevel, ip, parseErr := helper.ExtractLogDetails(logEntry)
+		logLevel, logPayload, ip, parseErr := helper.ExtractLogDetails(logEntry)
 		if parseErr != nil {
 			log.Debug("Parsing Error: %v", parseErr)
 			lp.metrics.InvalidLogs++
+		}
+
+		for _, keyword := range lp.keyWordsToTrack {
+			if strings.Contains(logPayload, keyword) {
+				lp.metrics.KeyWordsCount[keyword]++
+			}
 		}
 
 		lp.metrics.LogsProcessed++
@@ -109,7 +124,7 @@ func (lp *LogProcessor) processLogs(logStream io.ReadCloser) {
 
 		lp.mutex.Unlock()
 		// time.Sleep(1 * time.Second)
-		time.Sleep(500 * time.Millisecond)
+		// time.Sleep(500 * time.Millisecond)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -141,7 +156,8 @@ func (lp *LogProcessor) sendLiveUpdates() {
 					"warn":  lp.metrics.WarnCount,
 					"info":  lp.metrics.InfoCount,
 				},
-				Status: "In Progress",
+				KeyWordCounts: utils.GetMapCopy(lp.metrics.KeyWordsCount),
+				Status:        "In Progress",
 			}
 			lp.mutex.Unlock()
 
@@ -170,7 +186,8 @@ func (lp *LogProcessor) sendLiveUpdates() {
 					"warn":  lp.metrics.WarnCount,
 					"info":  lp.metrics.InfoCount,
 				},
-				Status: "Completed",
+				KeyWordCounts: utils.GetMapCopy(lp.metrics.KeyWordsCount),
+				Status:        "Completed",
 			}
 			lp.mutex.Unlock()
 
@@ -194,14 +211,15 @@ func (lp *LogProcessor) SaveFinalMetrics() error {
 	lp.mutex.Lock()
 	defer lp.mutex.Unlock()
 	logReport := models.LogReport{
-		JobID:       uuid.MustParse(lp.jobID),
-		TotalLogs:   lp.metrics.LogsProcessed,
-		ErrorCount:  lp.metrics.ErrorCount,
-		WarnCount:   lp.metrics.WarnCount,
-		InfoCount:   lp.metrics.InfoCount,
-		UniqueIPs:   len(lp.metrics.UniqueIPs),
-		InvalidLogs: lp.metrics.InvalidLogs,
-		CreatedAt:   time.Now(),
+		JobID:                uuid.MustParse(lp.jobID),
+		TotalLogs:            lp.metrics.LogsProcessed,
+		ErrorCount:           lp.metrics.ErrorCount,
+		WarnCount:            lp.metrics.WarnCount,
+		InfoCount:            lp.metrics.InfoCount,
+		UniqueIPs:            len(lp.metrics.UniqueIPs),
+		TrackedKeywordsCount: utils.GetMapCopy(lp.metrics.KeyWordsCount),
+		InvalidLogs:          lp.metrics.InvalidLogs,
+		CreatedAt:            time.Now(),
 	}
 
 	err := logReport.Create(lp.db)

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,15 +45,16 @@ func (job *Job) Create(db *gorm.DB) error {
 }
 
 type LogReport struct {
-	ID          uuid.UUID `json:"id" gorm:"column:id;primaryKey"`
-	JobID       uuid.UUID `json:"job_id" gorm:"column:job_id"`
-	TotalLogs   int       `json:"total_logs" gorm:"column:total_logs"`
-	ErrorCount  int       `json:"error_count" gorm:"column:error_count"`
-	WarnCount   int       `json:"warn_count" gorm:"column:warn_count"`
-	InfoCount   int       `json:"info_count" gorm:"column:info_count"`
-	UniqueIPs   int       `json:"unique_ips" gorm:"column:unique_ips"`
-	InvalidLogs int       `json:"invalid_logs" gorm:"column:invalid_logs"`
-	CreatedAt   time.Time `json:"created_at" gorm:"column:created_at"`
+	ID                   uuid.UUID      `json:"id" gorm:"column:id;primaryKey"`
+	JobID                uuid.UUID      `json:"job_id" gorm:"column:job_id"`
+	TotalLogs            int            `json:"total_logs" gorm:"column:total_logs"`
+	ErrorCount           int            `json:"error_count" gorm:"column:error_count"`
+	WarnCount            int            `json:"warn_count" gorm:"column:warn_count"`
+	InfoCount            int            `json:"info_count" gorm:"column:info_count"`
+	UniqueIPs            int            `json:"unique_ips" gorm:"column:unique_ips"`
+	InvalidLogs          int            `json:"invalid_logs" gorm:"column:invalid_logs"`
+	TrackedKeywordsCount map[string]int `json:"tracked_keywords_count" gorm:"-"`
+	CreatedAt            time.Time      `json:"created_at" gorm:"column:created_at"`
 
 	Job Job `json:"job" gorm:"foreignKey:JobID;references:ID"`
 }
@@ -64,13 +66,42 @@ func (lr LogReport) TableName() string {
 func (lr *LogReport) Create(db *gorm.DB) error {
 	lr.CreatedAt = time.Now()
 	lr.ID = uuid.New()
-	return db.Create(lr).Error
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(lr).Error; err != nil {
+			return fmt.Errorf("Error saving log report: %v", err)
+		}
+
+		fmt.Println("TrackedKeywordsCount: ", lr.TrackedKeywordsCount)
+
+		if len(lr.TrackedKeywordsCount) != 0 {
+			trackedKeywordsCounts := make([]TrackedKeywordsCount, 0, len(lr.TrackedKeywordsCount))
+			for keyword, count := range lr.TrackedKeywordsCount {
+				trackedKeywordsCounts = append(trackedKeywordsCounts, TrackedKeywordsCount{
+					LogReportID: lr.ID,
+					Keyword:     keyword,
+					Count:       count,
+				})
+			}
+
+			if err := tx.Create(&trackedKeywordsCounts).Error; err != nil {
+				return fmt.Errorf("Error saving tracked keywords count: %v", err)
+			}
+		}
+
+		return nil
+	})
+	return err
+
 }
 
 type TrackedKeywordsCount struct {
-	LogReportID int    `json:"log_report_id" gorm:"column:log_report_id;primaryKey"`
-	Keyword     string `json:"keyword" gorm:"column:keyword;primaryKey"`
-	Count       int    `json:"count" gorm:"column:count"`
+	LogReportID uuid.UUID `json:"log_report_id" gorm:"column:log_report_id;primaryKey"`
+	Keyword     string    `json:"keyword" gorm:"column:keyword;primaryKey"`
+	Count       int       `json:"count" gorm:"column:count"`
 
 	LogReport LogReport `json:"log_report" gorm:"foreignKey:LogReportID;references:ID"`
+}
+
+func (tkc TrackedKeywordsCount) TableName() string {
+	return "tracked_keywords_counts"
 }
