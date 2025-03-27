@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log-flow/internal/domain/models"
+	"log-flow/internal/infrastructure/config"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
 	"log-flow/internal/utils/helper"
@@ -30,6 +31,7 @@ type LogProcessor struct {
 	jobID           string
 	totalSize       int64
 	status          string
+	mockProcessLag  bool
 }
 
 func NewLogProcessor(
@@ -51,12 +53,13 @@ func NewLogProcessor(
 		storage:         storage,
 		db:              db,
 		keyWordsToTrack: keyWordsToTrack,
+		stopChan:        make(chan struct{}),
+		jobID:           jobID,
+		mockProcessLag:  config.Dev.SimulateLogProcessingLagMs > 0, //Development purpose
 		metrics: &LogMetrics{
 			UniqueIPs:     make(map[string]struct{}),
 			KeyWordsCount: make(map[string]int),
 		},
-		stopChan: make(chan struct{}),
-		jobID:    jobID,
 	}, nil
 }
 
@@ -123,8 +126,9 @@ func (lp *LogProcessor) processLogs(logStream io.ReadCloser) {
 		}
 
 		lp.mutex.Unlock()
-		// time.Sleep(1 * time.Second)
-		// time.Sleep(500 * time.Millisecond)
+		if lp.mockProcessLag {
+			time.Sleep(time.Millisecond * time.Duration(config.Dev.SimulateLogProcessingLagMs))
+		}
 	}
 
 	if err := scanner.Err(); err != nil {

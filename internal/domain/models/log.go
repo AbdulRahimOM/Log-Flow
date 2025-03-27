@@ -71,8 +71,6 @@ func (lr *LogReport) Create(db *gorm.DB) error {
 			return fmt.Errorf("Error saving log report: %v", err)
 		}
 
-		fmt.Println("TrackedKeywordsCount: ", lr.TrackedKeywordsCount)
-
 		if len(lr.TrackedKeywordsCount) != 0 {
 			trackedKeywordsCounts := make([]TrackedKeywordsCount, 0, len(lr.TrackedKeywordsCount))
 			for keyword, count := range lr.TrackedKeywordsCount {
