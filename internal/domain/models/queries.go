@@ -112,3 +112,14 @@ func GetWholeLogReportsAggregate(db *gorm.DB, userID uuid.UUID) (*WholeLogReport
 
 	return &wholeLogReportsAggregate, nil
 }
+
+func AddFailAttemptForJob(db *gorm.DB, jobID string) error {
+	result := db.Exec("UPDATE jobs SET attempts = attempts + 1, succeeded = false WHERE id = ?", jobID)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("record not found")
+	}
+	return nil
+}

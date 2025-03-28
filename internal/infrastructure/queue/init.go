@@ -4,15 +4,47 @@ import (
 	"log-flow/internal/infrastructure/config"
 
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/streadway/amqp"
 )
 
-const (
-	logFilesExchange   = "log_files_exchange"
-	logProcessingQueue = "log_processing_queue"
+type (
+	RabbitMQConfig struct {
+		Host     string
+		Port     string
+		User     string
+		Password string
+	}
+
+	LogQueueSender interface {
+		SendToQueue(logMsg LogMessage) error
+		GetQueueStatus() (map[string]any, error)
+	}
+
+	LogQueueReceiver interface {
+		RecieveLogFileDetails() (<-chan amqp.Delivery, error)
+		SentForRetry(msg amqp.Delivery)
+		SendToFailedQueue(msg amqp.Delivery)
+	}
+
+	LogQueue interface {
+		LogQueueReceiver
+		LogQueueSender
+	}
+
+	rabbitMqLogFileQueue struct {
+		conn *amqp.Connection
+		ch   *amqp.Channel
+	}
+
+	LogMessage struct {
+		JobID    string `json:"job_id"`
+		FileURL  string `json:"file_url"`
+		Priority uint8  `json:"priority"`
+	}
 )
 
 func InitLogQueue() LogQueue {
-	logFileQueue, err := NewRabbitMQLogQueue(getRabbitMQConfig(), logFilesExchange, logProcessingQueue)
+	logFileQueue, err := NewRabbitMQLogQueue(getRabbitMQConfig())
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}

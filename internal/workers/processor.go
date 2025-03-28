@@ -62,14 +62,12 @@ func NewLogProcessor(
 	}, nil
 }
 
-func (lp *LogProcessor) ProcessLogFile(logMessage queue.LogMessage) {
+func (lp *LogProcessor) ProcessLogFile(logMessage queue.LogMessage) error {
 	fileURL := logMessage.FileURL
 
 	logStream, err := lp.storage.StreamLogs(fileURL)
 	if err != nil {
-		log.Errorf("Failed to stream logs: %v", err)
-		//need to implement retry logic
-		return
+		return fmt.Errorf("Failed to stream logs: %v", err)
 	}
 	defer logStream.Close()
 
@@ -82,10 +80,15 @@ func (lp *LogProcessor) ProcessLogFile(logMessage queue.LogMessage) {
 
 	err = lp.SaveFinalMetrics()
 	if err != nil {
+		/*Its better to provide a retry mechanism here, for re-writing the metrics to the database,
+		than to return an error, causing retrying the whole process, or percieving the process as failed.
+		Now, just logging the error, and continuing the process.
+		*/
 		log.Errorf("Error saving final metrics: %v", err)
 	}
 
 	lp.liveStatusQueue.Delete()
+	return nil
 }
 
 func (lp *LogProcessor) processLogs(logStream io.ReadCloser) {

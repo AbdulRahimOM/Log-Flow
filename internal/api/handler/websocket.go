@@ -72,6 +72,10 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 		c.WriteMessage(websocket.TextMessage, []byte("Job not registered(Invalid Job ID)"))
 		return
 	}
+	if job.Attempts >= 3 && job.Succeeded == false {
+		c.WriteMessage(websocket.TextMessage, []byte("Job had been attempted 3 times, but failed"))
+		return
+	}
 
 	//Job registered, but log report not found. So, listen for progress messages
 
