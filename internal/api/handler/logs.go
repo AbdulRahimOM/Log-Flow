@@ -45,8 +45,8 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 	}
 
 	logMsg := queue.LogMessage{
-		JobID:   jobID.String(),
-		FileURL: url,
+		JobID:    jobID.String(),
+		FileURL:  url,
 		Priority: helper.GetPriorityByFileSize(file.Size),
 	}
 
@@ -94,4 +94,15 @@ func (h *HttpHandler) FetchStats(c *fiber.Ctx) response.HandledResponse {
 	}
 
 	return response.SuccessResponse(200, response.Success, results)
+}
+
+func (h *HttpHandler) GetQueueStatus(c *fiber.Ctx) response.HandledResponse {
+	status, err := h.logQueue.GetQueueStatus()
+	if err != nil {
+		return response.InternalServerErrorResponse(fmt.Errorf("Failed to get queue status. %v", err))
+	}
+
+	return response.SuccessResponse(200, response.Success, map[string]any{
+		"queueStatus": status,
+	})
 }

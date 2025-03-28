@@ -18,7 +18,7 @@ type (
 
 	LogQueueSender interface {
 		SendToQueue(logMsg LogMessage) error
-		GetQueueStatus() (map[string]int, error)
+		GetQueueStatus() (map[string]any, error)
 	}
 
 	LogQueueReceiver interface {
@@ -120,4 +120,17 @@ func (rq *rabbitMqLogFileQueue) SendToQueue(logMsg LogMessage) error {
 
 func (rq *rabbitMqLogFileQueue) RecieveLogFileDetails() (<-chan amqp.Delivery, error) {
 	return rq.ch.Consume(rq.queue, "", true, false, false, false, nil)
+}
+
+func (rq *rabbitMqLogFileQueue) GetQueueStatus() (map[string]any, error) {
+	queueInfo, err := rq.ch.QueueInspect(rq.queue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect queue: %v", err)
+	}
+
+	return map[string]any{
+		"name":           queueInfo.Name, //queue name
+		"message_count":  queueInfo.Messages, //no. of msgs
+		"consumer_count": queueInfo.Consumers, //no. of consumers
+	}, nil
 }
