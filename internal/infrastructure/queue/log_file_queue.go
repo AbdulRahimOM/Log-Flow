@@ -11,13 +11,15 @@ import (
 const (
 	logFilesExchange   = "log_files_exchange"
 	logProcessingQueue = "log_processing_queue"
-)
 
-const (
-	// dlxExchange     = "dlx_exchange"
 	dlxQueue        = "dlx_log_processing_queue"
 	retryRoutingKey = "retry"
 	dlxTTL          = 10000 // TTL in milliseconds (10 seconds)
+
+	logFailedExchange = "log_failed_exchange"
+	failedQueue       = "failed_queue"
+	failedRoutingKey  = "failed_routing_key"
+	failedQueueTTL    = 259200000 // 3 days (in milliseconds)
 )
 
 func NewRabbitMQLogQueue(rabbitConfig RabbitMQConfig) (*rabbitMqLogFileQueue, error) {
@@ -52,13 +54,7 @@ func NewRabbitMQLogQueue(rabbitConfig RabbitMQConfig) (*rabbitMqLogFileQueue, er
 		return nil, fmt.Errorf("failed to declare queue: %v", err)
 	}
 
-	err = ch.QueueBind(
-		logProcessingQueue,
-		logProcessingQueue, // Routing key same as queue name for direct exchange
-		logFilesExchange,
-		false,
-		nil,
-	)
+	err = ch.QueueBind(logProcessingQueue, logProcessingQueue, logFilesExchange, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind queue: %v", err)
 	}
@@ -85,6 +81,21 @@ func NewRabbitMQLogQueue(rabbitConfig RabbitMQConfig) (*rabbitMqLogFileQueue, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind DLX queue: %v", err)
 	}
+
+	// Declare Failed Exchange and Queue
+	err = ch.ExchangeDeclare(logFailedExchange, "direct", true, false, false, false, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to declare failed exchange: %v", err)
+	}
+
+	_, err = ch.QueueDeclare(
+		failedQueue, true, false, false, false,
+		amqp.Table{
+			"x-message-ttl": int32(failedQueueTTL),
+		},
+	)
+
+	err = ch.QueueBind(failedQueue, failedRoutingKey, logFailedExchange, false, nil)
 
 	return &rabbitMqLogFileQueue{
 		conn: conn,
@@ -133,8 +144,8 @@ func (rq *rabbitMqLogFileQueue) GetQueueStatus() (map[string]any, error) {
 	}, nil
 }
 
-func (rq *rabbitMqLogFileQueue) SentForRetry(msg amqp.Delivery) error {
-	fmt.Println("🔄 Sending message to DLX for retry")
+func (rq *rabbitMqLogFileQueue) SentForRetry(msg amqp.Delivery) {
+	log.Debug("🔄 Sending message to DLX for retry")
 	retryCount := 0
 
 	if msg.Headers != nil {
@@ -146,8 +157,9 @@ func (rq *rabbitMqLogFileQueue) SentForRetry(msg amqp.Delivery) error {
 	}
 
 	if retryCount >= 3 {
-		log.Error("❌ Retry count exceeded for message")
-		return nil
+		log.Debug("❌ Retry count exceeded, sending message to ", failedQueue)
+		rq.SendToFailedQueue(msg)
+		return
 	}
 
 	msg.Headers["x-retry-count"] = retryCount + 1
@@ -164,9 +176,30 @@ func (rq *rabbitMqLogFileQueue) SentForRetry(msg amqp.Delivery) error {
 			DeliveryMode: amqp.Persistent,
 		})
 	if err != nil {
-		return fmt.Errorf("failed to send message to DLX: %v", err)
+		log.Errorf("failed to send message to DLX: %v", err)
+		return
 	}
 
 	log.Debug("🔄 Message sent to DLX for retry")
-	return nil
+}
+
+func (rq *rabbitMqLogFileQueue) SendToFailedQueue(msg amqp.Delivery) {
+	log.Debug("❌ Sending message to ", failedQueue)
+
+	err := rq.ch.Publish(
+		logFailedExchange, // Failed messages exchange
+		failedRoutingKey,  // Routing key for failed queue
+		false,
+		false,
+		amqp.Publishing{
+			ContentType:  "application/json",
+			Body:         msg.Body,
+			Headers:      msg.Headers,
+			DeliveryMode: amqp.Persistent,
+		})
+	if err != nil {
+		log.Errorf("failed to send message to %s: %v", failedQueue, err)
+	}
+
+	log.Trace("📌 Message moved to ", failedQueue, " for manual inspection")
 }

@@ -22,7 +22,8 @@ type (
 
 	LogQueueReceiver interface {
 		RecieveLogFileDetails() (<-chan amqp.Delivery, error)
-		SentForRetry(msg amqp.Delivery) error 
+		SentForRetry(msg amqp.Delivery)
+		SendToFailedQueue(msg amqp.Delivery)
 	}
 
 	LogQueue interface {
@@ -31,8 +32,8 @@ type (
 	}
 
 	rabbitMqLogFileQueue struct {
-		conn     *amqp.Connection
-		ch       *amqp.Channel
+		conn *amqp.Connection
+		ch   *amqp.Channel
 	}
 
 	LogMessage struct {

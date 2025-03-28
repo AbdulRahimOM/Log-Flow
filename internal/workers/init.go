@@ -50,13 +50,14 @@ func (w *Worker) start(workerID int) {
 		var logMsg queue.LogMessage
 		if err := json.Unmarshal(msg.Body, &logMsg); err != nil {
 			log.Error("❌ Failed to unmarshal message: %v", err)
-			w.logQueue.SentForRetry(msg)
+			//marshalling errors are not supposed to be happen, and not meaningful to retry. Hence, directly sending to failed queue (for manual inspection, if required)
+			w.logQueue.SendToFailedQueue(msg) 
 			continue
 		}
 
 		logProcessor, err := NewLogProcessor(w.resultQueue, w.resultQueue, w.storage, w.db, w.keyWordsToTrack, logMsg.JobID)
 		if err != nil {
-			log.Error("❌ Failed to create log processor: %v", err) 
+			log.Error("❌ Failed to create log processor: %v", err)
 			w.logQueue.SentForRetry(msg)
 			continue
 		}
