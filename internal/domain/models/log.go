@@ -18,6 +18,8 @@ type Job struct {
 	ID         uuid.UUID `json:"id" gorm:"column:id;primaryKey"`
 	UserID     uuid.UUID `json:"userID" gorm:"column:user_id"`
 	FileURL    string    `json:"fileURL" gorm:"column:file_url;not null"`
+	Attempts   int       `json:"attempts" gorm:"column:attempts;default:0"`
+	Succeeded  bool      `json:"succeeded" gorm:"column:succeeded;default:false"`
 	UploadedAt time.Time `json:"uploadedAt" gorm:"column:uploaded_at"`
 }
 
@@ -70,6 +72,11 @@ func (lr *LogReport) Create(db *gorm.DB) error {
 			if err := tx.Create(&trackedKeywordsCounts).Error; err != nil {
 				return fmt.Errorf("Error saving tracked keywords count: %v", err)
 			}
+		}
+
+		err := tx.Exec("UPDATE jobs SET succeeded = true, attempts = attempts + 1 WHERE id = ?", lr.JobID).Error
+		if err != nil {
+			return fmt.Errorf("Error updating job: %v", err)
 		}
 
 		return nil

@@ -3,6 +3,7 @@ package workers
 import (
 	"encoding/json"
 	"fmt"
+	"log-flow/internal/domain/models"
 	"log-flow/internal/infrastructure/queue"
 	"log-flow/internal/infrastructure/storage"
 	"sync"
@@ -52,6 +53,13 @@ func (w *Worker) start(workerID int) {
 			log.Error("❌ Failed to unmarshal message: %v", err)
 			//marshalling errors are not supposed to be happen, and not meaningful to retry. Hence, directly sending to failed queue (for manual inspection, if required)
 			w.logQueue.SendToFailedQueue(msg) 
+			continue
+		}
+
+		err:=models.AddFailAttemptForJob(w.db, logMsg.JobID)
+		if err != nil {
+			log.Error("❌ Failed to add attempt for job in database: %v", err)
+			w.logQueue.SentForRetry(msg)
 			continue
 		}
 
