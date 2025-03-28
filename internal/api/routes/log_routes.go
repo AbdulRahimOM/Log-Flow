@@ -16,6 +16,6 @@ func mountLogRoutes(app *fiber.App, handler *handler.HttpHandler) {
 		api.Post("/upload-logs", responseWrapper(handler.UploadLogs))
 		api.Get("/stats", responseWrapper(handler.FetchStats))
 		api.Get("/stats/:jobId", middleware.JobAuthorCheck, responseWrapper(handler.FetchStatsByJobId))
-		// api.Get("/queue-status", handler.GetQueueStatus)
+		api.Get("/queue-status", responseWrapper(handler.GetQueueStatus))
 	}
 }

@@ -12,6 +12,5 @@ import (
 func mountWebSocketRoutes(app *fiber.App, websocketManager *handler.WebSocketManager) {
 
 	// WebSocket route
-	app.Use(middleware.JobAuthorCheck)
-	app.Get("/api/live-stats/:jobID", websocket.New(websocketManager.LiveProgressLogs))
+	app.Get("/api/live-stats/:jobID", middleware.JobAuthorCheck, websocket.New(websocketManager.LiveProgressLogs))
 }

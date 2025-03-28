@@ -67,7 +67,7 @@ func (lr *LogReport) Create(db *gorm.DB) error {
 				})
 			}
 
-			if err := tx.Create(&lr.TrackedKeywordsCount).Error; err != nil {
+			if err := tx.Create(&trackedKeywordsCounts).Error; err != nil {
 				return fmt.Errorf("Error saving tracked keywords count: %v", err)
 			}
 		}
