@@ -1,8 +1,10 @@
 package config
 
 type AppSettings struct {
-	Port     string `mapstructure:"PORT"`
-	LogLevel string `mapstructure:"LOG_LEVEL"`
+	Port             string `mapstructure:"PORT"`
+	LogLevel         string `mapstructure:"LOG_LEVEL"`
+	GeneralRateLimit int    `mapstructure:"GENERAL_RATE_LIMIT"`
+	AuthEndpointsRateLimit   int    `mapstructure:"AUTH_ENDPOINTS_RATE_LIMIT"`
 }
 
 type SupaBase struct {
