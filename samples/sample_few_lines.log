@@ -1,0 +1,16 @@
+[2025-02-20T10:00:00Z] INFO Server started  
+[2025-02-20T10:01:15Z] DEBUG Initializing database connection  
+[2025-02-20T10:02:30Z] INFO User login successful {"userId": 101, "ip": "192.168.1.5"}  
+[2025-02-20T10:03:50Z] WARN High memory usage detected (78%)  
+[2025-02-20T10:05:23Z] ERROR Database timeout {"userId": 123, "ip": "192.168.1.1"}  
+[2025-02-20T10:07:10Z] INFO API request received {"method": "GET", "endpoint": "/orders", "userId": 234}  
+[2025-02-20T10:08:05Z] DEBUG Query execution time {"query": "SELECT * FROM orders", "durationMs": 342}  
+[2025-02-20T10:09:30Z] ERROR Payment gateway unreachable {"error": "Connection refused", "orderId": 56789}  
+[2025-02-20T10:10:45Z] WARN Disk usage at 85%  
+[2025-02-20T10:12:20Z] INFO New order placed {"orderId": 89012, "userId": 678, "amount": 249.99}  
+[2025-02-20T10:13:45Z] DEBUG Cache refreshed {"cacheKey": "product:1234"}  
+[2025-02-20T10:14:30Z] INFO User logout {"userId": 101}  
+[2025-02-20T10:15:12Z] DEBUG Cache refreshed {"cacheKey": "user:456"}  
+[2025-02-20T10:17:00Z] ERROR Failed to send email {"recipient": "user@example.com", "error": "SMTP timeout"}  
+[2025-02-20T10:20:30Z] WARN Slow response time detected {"endpoint": "/checkout", "durationMs": 1520}  
+[2025-02-20T10:22:45Z] INFO Server shutting down  

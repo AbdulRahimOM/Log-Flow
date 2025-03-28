@@ -63,6 +63,7 @@ func NewLogProcessor(
 }
 
 func (lp *LogProcessor) ProcessLogFile(logMessage queue.LogMessage) error {
+	start := time.Now()
 	fileURL := logMessage.FileURL
 
 	logStream, err := lp.storage.StreamLogs(fileURL)
@@ -87,6 +88,8 @@ func (lp *LogProcessor) ProcessLogFile(logMessage queue.LogMessage) error {
 		log.Errorf("Error saving final metrics: %v", err)
 	}
 
+	timeTaken := time.Now().Sub(start)
+	log.Debug("Time taken to process logs: ", timeTaken)
 	lp.liveStatusQueue.Delete()
 	return nil
 }

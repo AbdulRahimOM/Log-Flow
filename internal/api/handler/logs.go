@@ -50,11 +50,6 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 		Priority: helper.GetPriorityByFileSize(file.Size),
 	}
 
-	err = h.logQueue.SendToQueue(logMsg)
-	if err != nil {
-		return response.ErrorResponse(fiber.StatusInternalServerError, "QUEUE_ERROR", fmt.Errorf("Failed to send to queue. %v", err))
-	}
-
 	job := models.Job{
 		ID:         jobID,
 		UserID:     userID,
@@ -63,6 +58,11 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 	}
 	if err = job.Create(h.db); err != nil {
 		return response.ErrorResponse(fiber.StatusInternalServerError, "DB_ERROR", fmt.Errorf("Failed to save job to db. %v", err))
+	}
+
+	err = h.logQueue.SendToQueue(logMsg)
+	if err != nil {
+		return response.ErrorResponse(fiber.StatusInternalServerError, "QUEUE_ERROR", fmt.Errorf("Failed to send to queue. %v", err))
 	}
 
 	return response.SuccessResponse(200, response.Success,

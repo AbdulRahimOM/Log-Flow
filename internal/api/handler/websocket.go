@@ -103,4 +103,5 @@ func (wsm *WebSocketManager) LiveProgressLogs(c *websocket.Conn) {
 	}
 
 	c.WriteMessage(websocket.TextMessage, []byte("Completed"))
+	time.Sleep(1 * time.Second) // Give some time to send the ending message
 }
