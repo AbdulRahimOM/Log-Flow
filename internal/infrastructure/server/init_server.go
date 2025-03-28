@@ -35,8 +35,7 @@ func InitializeServer() *fiber.App {
 	fileStore := storage.NewSupabaseStorage(config.Env.SupaBaseURL, config.Env.SupaBaseKey, config.Env.SupaBaseBucket)
 	logFileQueue := queue.InitLogQueue()
 	liveProgressMessenger := queue.InitLiveStatusQueue()
-	supabaseAuth := gotrue.New("mlvrrjjrhybrovqoijna",
-		config.Env.SupaBaseKey)
+	supabaseAuth := gotrue.New(config.Env.SupaBaseProjectReference, config.Env.SupaBaseKey)
 
 	//workers
 	workers := workers.NewWorkers(database, fileStore, logFileQueue, liveProgressMessenger, config.Env.LogConfig.Keywords)
