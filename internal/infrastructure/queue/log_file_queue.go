@@ -18,6 +18,7 @@ type (
 
 	LogQueueSender interface {
 		SendToQueue(logMsg LogMessage) error
+		GetQueueStatus() (map[string]int, error)
 	}
 
 	LogQueueReceiver interface {
@@ -37,8 +38,9 @@ type (
 	}
 
 	LogMessage struct {
-		JobID   string `json:"job_id"`
-		FileURL string `json:"file_url"`
+		JobID    string `json:"job_id"`
+		FileURL  string `json:"file_url"`
+		Priority uint8  `json:"priority"`
 	}
 )
 
@@ -60,6 +62,20 @@ func NewRabbitMQLogQueue(rabbitConfig RabbitMQConfig, exchange, queue string) (*
 		return nil, fmt.Errorf("failed to declare exchange: %v", err)
 	}
 
+	_, err = ch.QueueDeclare(
+		queue,
+		true,
+		false,
+		false,
+		false,
+		amqp.Table{
+			"x-max-priority": 10,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to declare queue: %v", err)
+	}
+
 	err = ch.QueueBind(
 		queue,
 		queue, // Routing key same as queue name for direct exchange
@@ -69,11 +85,6 @@ func NewRabbitMQLogQueue(rabbitConfig RabbitMQConfig, exchange, queue string) (*
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind queue: %v", err)
-	}
-
-	_, err = ch.QueueDeclare(queue, true, false, false, false, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to declare queue: %v", err)
 	}
 
 	return &rabbitMqLogFileQueue{
@@ -97,6 +108,7 @@ func (rq *rabbitMqLogFileQueue) SendToQueue(logMsg LogMessage) error {
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        msgBody,
+			Priority:    logMsg.Priority,
 		})
 	if err != nil {
 		return fmt.Errorf("failed to publish message: %v", err)
