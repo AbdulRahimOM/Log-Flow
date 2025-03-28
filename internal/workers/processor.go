@@ -99,7 +99,7 @@ func (lp *LogProcessor) processLogs(logStream io.ReadCloser) {
 		lp.mutex.Lock()
 		logLevel, logPayload, ip, parseErr := helper.ExtractLogDetails(logEntry)
 		if parseErr != nil {
-			log.Debug("Parsing Error: %v", parseErr)
+			log.Tracef("Parsing Error: %v", parseErr)
 			lp.metrics.InvalidLogs++
 		}
 
