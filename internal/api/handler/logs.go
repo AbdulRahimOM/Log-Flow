@@ -11,7 +11,7 @@ import (
 
 	_ "log-flow/internal/infrastructure/db"
 
-	_ "log-flow/internal/infrastructure/db"
+	_ "log-flow/internal/utils/helper"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -47,6 +47,7 @@ func (h *HttpHandler) UploadLogs(c *fiber.Ctx) response.HandledResponse {
 	logMsg := queue.LogMessage{
 		JobID:   jobID.String(),
 		FileURL: url,
+		Priority: helper.GetPriorityByFileSize(file.Size),
 	}
 
 	err = h.logQueue.SendToQueue(logMsg)
