@@ -50,16 +50,23 @@ func (w *Worker) start(workerID int) {
 		var logMsg queue.LogMessage
 		if err := json.Unmarshal(msg.Body, &logMsg); err != nil {
 			log.Error("❌ Failed to unmarshal message: %v", err)
+			w.logQueue.SentForRetry(msg)
 			continue
 		}
 
 		logProcessor, err := NewLogProcessor(w.resultQueue, w.resultQueue, w.storage, w.db, w.keyWordsToTrack, logMsg.JobID)
 		if err != nil {
-			log.Error("❌ Failed to create log processor: %v", err) //need to implement retry logic
+			log.Error("❌ Failed to create log processor: %v", err) 
+			w.logQueue.SentForRetry(msg)
 			continue
 		}
 
-		logProcessor.ProcessLogFile(logMsg)
+		err = logProcessor.ProcessLogFile(logMsg)
+		if err != nil {
+			log.Error("❌ Failed to process log file: %v", err)
+			w.logQueue.SentForRetry(msg)
+			continue
+		}
 
 		log.Trace("✅ @Received message from RabbitMQ by worker(%d)..: %s\n", workerID, logMsg.FileURL)
 	}
