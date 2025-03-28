@@ -50,7 +50,7 @@ func (w *Worker) start(workerID int) {
 		log.Debug("✅log recieved by worker:", workerID)
 		var logMsg queue.LogMessage
 		if err := json.Unmarshal(msg.Body, &logMsg); err != nil {
-			log.Error("❌ Failed to unmarshal message: %v", err)
+			log.Errorf("❌ Failed to unmarshal message: %v", err)
 			//marshalling errors are not supposed to be happen, and not meaningful to retry. Hence, directly sending to failed queue (for manual inspection, if required)
 			w.logQueue.SendToFailedQueue(msg) 
 			continue
@@ -58,21 +58,21 @@ func (w *Worker) start(workerID int) {
 
 		err:=models.AddFailAttemptForJob(w.db, logMsg.JobID)
 		if err != nil {
-			log.Error("❌ Failed to add attempt for job in database: %v", err)
+			log.Errorf("❌ Failed to add attempt for job in database: %v", err)
 			w.logQueue.SentForRetry(msg)
 			continue
 		}
 
 		logProcessor, err := NewLogProcessor(w.resultQueue, w.resultQueue, w.storage, w.db, w.keyWordsToTrack, logMsg.JobID)
 		if err != nil {
-			log.Error("❌ Failed to create log processor: %v", err)
+			log.Errorf("❌ Failed to create log processor: %v", err)
 			w.logQueue.SentForRetry(msg)
 			continue
 		}
 
 		err = logProcessor.ProcessLogFile(logMsg)
 		if err != nil {
-			log.Error("❌ Failed to process log file: %v", err)
+			log.Errorf("❌ Failed to process log file: %v", err)
 			w.logQueue.SentForRetry(msg)
 			continue
 		}
