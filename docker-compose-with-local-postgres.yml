@@ -1,0 +1,98 @@
+# To run the application with local postgres, use the following command:
+# Need to replace the environment variables (supabase related) with real values
+# docker-compose up --build
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3008:3008"
+    environment:
+      - ENVIRONMENT=DOCKER
+      - PORT=3008
+      - LOG_LEVEL=debug
+      - GENERAL_RATE_LIMIT=100
+      - AUTH_ENDPOINTS_RATE_LIMIT=10
+
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=123456
+      - DB_NAME=logflow
+      - DB_SSLMODE=disable
+
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+
+      - SUPABASE_URL= #enter_your_supabase_url
+      - SUPABASE_KEY= #enter_your_supabase_key
+      - SUPABASE_BUCKET= #enter_your_supabase_bucket
+      - SUPABASE_JWT_SECRET_KEY= #enter_your_supabase_jwt_secret_key
+      - SUPABASE_PROJECT_REFERENCE= #enter_your_supabase_project_reference
+
+      - KEYWORDS=error,timeout,failure,unauthorized
+      - DEV_SIMULATE_LOG_PROCESSING_LAG_MS=1000
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3008/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - logflow-network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=logflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - logflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d logflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - logflow-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  logflow-network:
+    driver: bridge 

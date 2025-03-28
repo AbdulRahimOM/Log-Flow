@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+
+.vscode/
+
+# Logs
+*.log
+
+# Build artifacts
+main
+
+# Docker related
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Environment files
+.env*
+*.env
+
+# Test files
+*_test.go
+test/
+
+# Other
+README.md
+*.md
+.DS_Store 
